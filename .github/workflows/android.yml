@@ -1,6 +1,8 @@
-name: Android CI
+name: Android CI/CD
 
 on:
+  workflow_dispatch:    # 👈 我只加了这一行，其他完全不动
+
   push:
     branches: [ "main" ]
     paths-ignore:
