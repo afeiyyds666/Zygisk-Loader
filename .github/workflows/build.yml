@@ -12,36 +12,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
-      # 安装 NDK 工具链
-      - name: Setup NDK
-        run: |
-          sudo apt update
-          sudo apt install -y build-essential cmake llvm clang
-
-      # 编译项目
-      - name: Build
-        run: |
-          make
-
-      # 写入你输入的包名
-      - name: Configure target package
+      # 自动创建 config，写入你输入的包名
+      - name: Create config
         run: |
           mkdir -p config
           echo "${{ github.event.inputs.package_name }}" > config/target
 
-      # 上传成品模块
-      - name: Upload module
+      # 直接把整个模块打包上传
+      - name: Upload full module
         uses: actions/upload-artifact@v4
         with:
-          name: Zygisk-Loader-Module
+          name: Zygisk-Loader
           path: |
-            *.so
-            zygisk/
-            config/
-            module.prop
-            META-INF/
-            *.zip
-
+            ./
+            !.git/
