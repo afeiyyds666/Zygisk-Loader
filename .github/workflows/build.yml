@@ -16,13 +16,20 @@ jobs:
         distribution: temurin
         java-version: 11
         cache: gradle
+
     - run: |
         chmod +x ./gradlew
-        sed -i 's/moduleDescription = "/moduleDescription = "(${{ github.event.inputs.package_name }}) /g' module.gradle
+
+        # 替换 module 目录下的 module.gradle
+        sed -i 's/moduleDescription = "/moduleDescription = "(${{ github.event.inputs.package_name }}) /g' module/module.gradle
+
+        # 替换头文件包名
         sed -i "s/com.game.packagename/${{ github.event.inputs.package_name }}/g" module/src/main/cpp/game.h
+
         ./gradlew :module:assembleRelease
+      shell: bash
+
     - uses: actions/upload-artifact@v4
       with:
         name: zygisk-il2cppdumper
         path: out/magisk_module_release/
-
