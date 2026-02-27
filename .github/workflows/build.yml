@@ -1,29 +1,97 @@
-name: Build Zygisk-Loader
+name: Android CI/CD
 
 on:
-  workflow_dispatch:
-    inputs:
-      package_name:
-        description: "Target app package name"
-        required: true
+  push:
+    branches: [ "main" ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  pull_request:
+    branches: [ "main" ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  release:
+    types: [ published ]
+
+permissions:
+  contents: write
 
 jobs:
   build:
+    name: Build Module
     runs-on: ubuntu-latest
+    
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-      # 自动创建 config，写入你输入的包名
-      - name: Create config
-        run: |
-          mkdir -p config
-          echo "${{ github.event.inputs.package_name }}" > config/target
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
 
-      # 直接把整个模块打包上传
-      - name: Upload full module
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build with Gradle
+        run: ./gradlew :module:zipRelease
+
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Zygisk-Loader
-          path: |
-            ./
-            !.git/
+          name: ZygiskLoader-Release
+          path: module/release/*.zip 
+          if-no-files-found: error
+
+  deploy-release:
+    name: Deploy to GitHub Release
+    needs: build
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Download Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ZygiskLoader-Release
+          path: out
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: out/*.zip
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy-nightly:
+    name: Update Nightly Release
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ZygiskLoader-Release
+          path: out
+
+      - name: Update Nightly Tag
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: nightly 
+          name: Nightly Build
+          body: "Latest build from main branch."
+          files: out/*.zip
+          prerelease: true
+          overwrite: true 
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
