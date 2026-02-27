@@ -14,19 +14,18 @@ jobs:
     - uses: actions/setup-java@v4
       with:
         distribution: temurin
-        java-version: 11
+        java-version: 17
         cache: gradle
 
     - run: |
         chmod +x gradlew
 
-        # 自动找到所有 module.gradle 并替换（不管在哪）
-        find . -name "module.gradle" -type f -exec sed -i "s|moduleDescription = \"|moduleDescription = \"(${{ github.event.inputs.package_name }}) |g" {} +
+        # 自动替换描述
+        find . -name "module.gradle" -o -name "build.gradle" | xargs sed -i "s|moduleDescription = \"|moduleDescription = \"(${{ github.event.inputs.package_name }}) |g"
 
-        # 替换 game.h 包名
+        # 自动替换包名
         find . -name "game.h" -type f -exec sed -i "s/com.game.packagename/${{ github.event.inputs.package_name }}/g" {} +
 
-        # 编译
         ./gradlew module:assembleRelease
       shell: bash
 
@@ -34,4 +33,3 @@ jobs:
       with:
         name: zygisk-module
         path: out/magisk_module_release/
-
