@@ -1,16 +1,19 @@
 name: Build
 on:
   workflow_dispatch:
-      inputs:
-        package_name:
-          description: "Package name of the game:"
-          required: true
+    inputs:
+      package_name:
+        description: "Package name of the game:"
+        required: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
     - uses: actions/setup-java@v4
       with:
         distribution: temurin
@@ -20,16 +23,22 @@ jobs:
     - run: |
         chmod +x gradlew
 
-        # 自动替换描述
-        find . -name "module.gradle" -o -name "build.gradle" | xargs sed -i "s|moduleDescription = \"|moduleDescription = \"(${{ github.event.inputs.package_name }}) |g"
+        # 替换描述
+        find . -name "*.gradle" -type f | xargs sed -i "s|moduleDescription = \"|moduleDescription = \"(${{ github.event.inputs.package_name }}) |g" 2>/dev/null || true
 
-        # 自动替换包名
-        find . -name "game.h" -type f -exec sed -i "s/com.game.packagename/${{ github.event.inputs.package_name }}/g" {} +
+        # 替换包名
+        find . -name "*.h" -o -name "*.cpp" | xargs sed -i "s/com.game.packagename/${{ github.event.inputs.package_name }}/g" 2>/dev/null || true
 
         ./gradlew module:assembleRelease
       shell: bash
 
-    - uses: actions/upload-artifact@v4
+    # 把所有可能输出的 zip 都上传
+    - name: Upload module
+      uses: actions/upload-artifact@v4
       with:
         name: zygisk-module
-        path: out/magisk_module_release/
+        path: |
+          **/build/outputs/magisk/*.zip
+          **/out/*.zip
+          out/*.zip
+          module/build/outputs/magisk/*.zip
