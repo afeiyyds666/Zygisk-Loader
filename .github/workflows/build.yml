@@ -18,18 +18,20 @@ jobs:
         cache: gradle
 
     - run: |
-        chmod +x ./gradlew
+        chmod +x gradlew
 
-        # 替换 module 目录下的 module.gradle
-        sed -i 's/moduleDescription = "/moduleDescription = "(${{ github.event.inputs.package_name }}) /g' module/module.gradle
+        # 自动找到所有 module.gradle 并替换（不管在哪）
+        find . -name "module.gradle" -type f -exec sed -i "s|moduleDescription = \"|moduleDescription = \"(${{ github.event.inputs.package_name }}) |g" {} +
 
-        # 替换头文件包名
-        sed -i "s/com.game.packagename/${{ github.event.inputs.package_name }}/g" module/src/main/cpp/game.h
+        # 替换 game.h 包名
+        find . -name "game.h" -type f -exec sed -i "s/com.game.packagename/${{ github.event.inputs.package_name }}/g" {} +
 
-        ./gradlew :module:assembleRelease
+        # 编译
+        ./gradlew module:assembleRelease
       shell: bash
 
     - uses: actions/upload-artifact@v4
       with:
-        name: zygisk-il2cppdumper
+        name: zygisk-module
         path: out/magisk_module_release/
+
