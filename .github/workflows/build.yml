@@ -1,44 +1,47 @@
-name: Build
+name: Build Zygisk-Loader
+
 on:
   workflow_dispatch:
     inputs:
       package_name:
-        description: "Package name of the game:"
+        description: "Target app package name"
         required: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-    - uses: actions/setup-java@v4
-      with:
-        distribution: temurin
-        java-version: 17
-        cache: gradle
+      # 安装 NDK 工具链
+      - name: Setup NDK
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential cmake llvm clang
 
-    - run: |
-        chmod +x gradlew
+      # 编译项目
+      - name: Build
+        run: |
+          make
 
-        # 替换描述
-        find . -name "*.gradle" -type f | xargs sed -i "s|moduleDescription = \"|moduleDescription = \"(${{ github.event.inputs.package_name }}) |g" 2>/dev/null || true
+      # 写入你输入的包名
+      - name: Configure target package
+        run: |
+          mkdir -p config
+          echo "${{ github.event.inputs.package_name }}" > config/target
 
-        # 替换包名
-        find . -name "*.h" -o -name "*.cpp" | xargs sed -i "s/com.game.packagename/${{ github.event.inputs.package_name }}/g" 2>/dev/null || true
+      # 上传成品模块
+      - name: Upload module
+        uses: actions/upload-artifact@v4
+        with:
+          name: Zygisk-Loader-Module
+          path: |
+            *.so
+            zygisk/
+            config/
+            module.prop
+            META-INF/
+            *.zip
 
-        ./gradlew module:assembleRelease
-      shell: bash
-
-    # 把所有可能输出的 zip 都上传
-    - name: Upload module
-      uses: actions/upload-artifact@v4
-      with:
-        name: zygisk-module
-        path: |
-          **/build/outputs/magisk/*.zip
-          **/out/*.zip
-          out/*.zip
-          module/build/outputs/magisk/*.zip
